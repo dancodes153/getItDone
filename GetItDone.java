@@ -17,86 +17,93 @@ public class GetItDone extends JFrame {
 
     ArrayList<Task> myTasks = new ArrayList<Task>();
 
-    // keeping track of points and goals
-    int totalPoints = 0;
-    int studyGoal = 5;         // default goal: complete 5 tasks
-    int tasksFinished = 0;
-    int goalsCompleted = 0;    // for the "on fire" badge
+    int studyGoal      = 5;
+    int tasksFinished  = 0;
+    int goalsCompleted = 0;
 
-    // --- GUI components that need to be updated later ---
+    // tracks which task we're up to for rotating the completion messages
+    int completionMsgIndex = 0;
 
-    // list models let me add/remove items from a JList
-    DefaultListModel<String> taskListModel = new DefaultListModel<String>();
+    // --- GUI components that need updating ---
+
+    DefaultListModel<String> taskListModel      = new DefaultListModel<String>();
     DefaultListModel<String> completedListModel = new DefaultListModel<String>();
 
-    // labels in the top bar
-    JLabel pointsLabel       = new JLabel("  Points: 0");
     JLabel goalProgressLabel = new JLabel("  Goal: 0 / 5 tasks");
 
-    // bottom reminder label
-    JLabel reminderLabel = new JLabel("  Next break in: 25 min   |   Next water reminder in: 60 min");
-
-    // progress bar on the goals tab
     JProgressBar goalProgressBar = new JProgressBar(0, 5);
 
-    // text area on goals tab that shows badge status
-    JTextArea badgeStatusArea;
+    // the achievements area on the Goals tab
+    JTextArea achievementsArea;
 
-    // countdown in minutes for reminders
+    // reminder countdowns (minutes)
     int breakMinutesLeft = 25;
     int waterMinutesLeft = 60;
+    int breakMsgIndex    = 0;
+    int waterMsgIndex    = 0;
 
-    // --- reward / gift card system ---
+    // --- message banks ---
 
-    // tracks how many rewards the user has earned but not claimed yet
-    int unclaimedRewards = 0;
+    // shown one by one each time a task is completed
+    String[] completionMessages = {
+        "Good job studying! Keep it up!",
+        "Nice work! You're making real progress.",
+        "Well done! Every task counts.",
+        "That's the way to do it! Keep going.",
+        "Great job! You should be proud of yourself.",
+        "Awesome! One step closer to your goal.",
+        "You're doing amazing - don't stop now!",
+        "Look at you go! Another one checked off.",
+        "Solid work! You're building great habits.",
+        "Keep crushing it! You've got this."
+    };
 
-    // tracks which point tiers have already given out a reward (so they don't get it twice)
-    boolean reward50given  = false;
-    boolean reward100given = false;
-    boolean reward200given = false;
-    boolean reward300given = false;
+    // shown silently as toast notifications for breaks
+    String[] breakMessages = {
+        "Time for a quick stretch!",
+        "Give your eyes a rest for a moment.",
+        "Stand up and move around a little!",
+        "Take a 5-minute breather - you earned it!",
+        "Step away from the screen for a bit.",
+        "Your brain needs a short break too!"
+    };
 
-    // label that shows the claim button and notice
-    JLabel rewardNoticeLabel = new JLabel("  No rewards to claim yet. Keep completing tasks!");
-    JButton claimRewardBtn   = makeButton("  Claim Reward  ", new Color(180, 110, 0), Color.WHITE);
+    // shown silently as toast notifications for water
+    String[] waterMessages = {
+        "Go for a water break!",
+        "Stay hydrated - drink some water!",
+        "Time to refill your water bottle.",
+        "Hydration check! Have you had water lately?",
+        "Drink water, stay focused!",
+        "A glass of water will do you good right now."
+    };
 
 
     // -------------------------------------------------------
-    // CONSTRUCTOR - this builds the whole window
+    // CONSTRUCTOR
     // -------------------------------------------------------
     public GetItDone() {
         setTitle("Get It Done - Stay Productive!");
-        setSize(780, 620);
+        setSize(780, 600);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);  // center the window on screen
+        setLocationRelativeTo(null);
 
-        // main container for everything
         JPanel mainPanel = new JPanel(new BorderLayout(8, 8));
         mainPanel.setBorder(new EmptyBorder(10, 10, 10, 10));
         mainPanel.setBackground(new Color(248, 250, 255));
 
-        // build the different sections
-        JPanel topBar    = buildTopBar();
-        JTabbedPane tabs = buildTabs();
-        JPanel bottomBar = buildBottomBar();
-
-        mainPanel.add(topBar,    BorderLayout.NORTH);
-        mainPanel.add(tabs,      BorderLayout.CENTER);
-        mainPanel.add(bottomBar, BorderLayout.SOUTH);
+        mainPanel.add(buildTopBar(), BorderLayout.NORTH);
+        mainPanel.add(buildTabs(),   BorderLayout.CENTER);
 
         add(mainPanel);
 
-        // load any tasks we saved last time the app was open
         loadCompletedTasksFromFile();
-
-        // start the timer that reminds us to take breaks and drink water
         startReminderTimer();
     }
 
 
     // -------------------------------------------------------
-    // TOP BAR - shows the app name, points, and goal progress
+    // TOP BAR
     // -------------------------------------------------------
     private JPanel buildTopBar() {
         JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 8));
@@ -107,16 +114,11 @@ public class GetItDone extends JFrame {
         appTitle.setFont(new Font("Segoe UI", Font.BOLD, 20));
         appTitle.setForeground(Color.WHITE);
 
-        pointsLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        pointsLabel.setForeground(new Color(255, 230, 80));
-
         goalProgressLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
         goalProgressLabel.setForeground(new Color(180, 230, 255));
 
         topBar.add(appTitle);
         topBar.add(makeSpacer(30));
-        topBar.add(pointsLabel);
-        topBar.add(makeSpacer(20));
         topBar.add(goalProgressLabel);
 
         return topBar;
@@ -124,7 +126,7 @@ public class GetItDone extends JFrame {
 
 
     // -------------------------------------------------------
-    // TABS - the three main sections of the app
+    // TABS
     // -------------------------------------------------------
     private JTabbedPane buildTabs() {
         JTabbedPane tabs = new JTabbedPane();
@@ -132,7 +134,7 @@ public class GetItDone extends JFrame {
         tabs.setBackground(new Color(248, 250, 255));
 
         tabs.addTab("  My Tasks  ",        buildTasksTab());
-        tabs.addTab("  Goals & Rewards  ", buildGoalsTab());
+        tabs.addTab("  Goals  ",           buildGoalsTab());
         tabs.addTab("  Completed Tasks  ", buildCompletedTab());
 
         return tabs;
@@ -140,14 +142,13 @@ public class GetItDone extends JFrame {
 
 
     // -------------------------------------------------------
-    // TASKS TAB - add, view, delete, and complete tasks
+    // TASKS TAB
     // -------------------------------------------------------
     private JPanel buildTasksTab() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
         panel.setBorder(new EmptyBorder(12, 12, 12, 12));
         panel.setBackground(new Color(248, 250, 255));
 
-        // the list that shows all current tasks
         JList<String> taskListDisplay = new JList<String>(taskListModel);
         taskListDisplay.setFont(new Font("Segoe UI", Font.PLAIN, 14));
         taskListDisplay.setSelectionBackground(new Color(80, 130, 210));
@@ -157,39 +158,37 @@ public class GetItDone extends JFrame {
         JScrollPane taskScrollPane = new JScrollPane(taskListDisplay);
         taskScrollPane.setBorder(makeTitledBorder("  Your Tasks  ", new Color(45, 95, 155)));
 
-        // ---- form to add a new task ----
+        // ---- add task form ----
         JPanel addTaskForm = new JPanel(new GridBagLayout());
         addTaskForm.setBackground(new Color(235, 243, 255));
         addTaskForm.setBorder(makeTitledBorder("  Add a New Task  ", new Color(45, 95, 155)));
 
         GridBagConstraints c = new GridBagConstraints();
-        c.insets  = new Insets(6, 8, 6, 8);
-        c.fill    = GridBagConstraints.HORIZONTAL;
-        c.anchor  = GridBagConstraints.WEST;
+        c.insets = new Insets(6, 8, 6, 8);
+        c.fill   = GridBagConstraints.HORIZONTAL;
+        c.anchor = GridBagConstraints.WEST;
 
         JTextField taskNameInput = new JTextField(24);
         taskNameInput.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
-        // date+time spinner - lets the user pick a deadline from a calendar-style picker
+        // date + time spinner for the deadline
         SpinnerDateModel dateModel = new SpinnerDateModel(new Date(), null, null, Calendar.DAY_OF_MONTH);
         JSpinner deadlineSpinner = new JSpinner(dateModel);
         JSpinner.DateEditor dateEditor = new JSpinner.DateEditor(deadlineSpinner, "MMM dd, yyyy  hh:mm a");
         deadlineSpinner.setEditor(dateEditor);
         deadlineSpinner.setFont(new Font("Segoe UI", Font.PLAIN, 13));
 
-        JLabel nameLbl     = makeLabel("Task name:");
-        JLabel deadlineLbl = makeLabel("Deadline:");
-        JLabel hintLbl     = new JLabel("Use the arrows to change the date and time");
+        JLabel hintLbl = new JLabel("Click on the date or time, then use the arrows to change it");
         hintLbl.setFont(new Font("Segoe UI", Font.ITALIC, 11));
         hintLbl.setForeground(Color.GRAY);
 
         c.gridx = 0; c.gridy = 0; c.weightx = 0;
-        addTaskForm.add(nameLbl, c);
+        addTaskForm.add(makeLabel("Task name:"), c);
         c.gridx = 1; c.weightx = 1.0;
         addTaskForm.add(taskNameInput, c);
 
         c.gridx = 0; c.gridy = 1; c.weightx = 0;
-        addTaskForm.add(deadlineLbl, c);
+        addTaskForm.add(makeLabel("Deadline:"), c);
         c.gridx = 1; c.weightx = 1.0;
         addTaskForm.add(deadlineSpinner, c);
 
@@ -200,15 +199,13 @@ public class GetItDone extends JFrame {
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 8));
         buttonsPanel.setBackground(new Color(248, 250, 255));
 
-        JButton addBtn      = makeButton("  Add Task  ",      new Color(45, 95, 155),  Color.WHITE);
-        JButton deleteBtn   = makeButton("  Delete  ",        new Color(190, 65, 65),   Color.WHITE);
-        JButton completeBtn = makeButton("  Mark Complete  ", new Color(45, 150, 70),   Color.WHITE);
+        JButton addBtn      = makeButton("  Add Task  ",      new Color(45, 95, 155), Color.WHITE);
+        JButton deleteBtn   = makeButton("  Delete  ",        new Color(190, 65, 65),  Color.WHITE);
+        JButton completeBtn = makeButton("  Mark Complete  ", new Color(45, 150, 70),  Color.WHITE);
 
         buttonsPanel.add(addBtn);
         buttonsPanel.add(deleteBtn);
         buttonsPanel.add(completeBtn);
-
-        // ---- button actions ----
 
         addBtn.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
@@ -216,21 +213,18 @@ public class GetItDone extends JFrame {
 
                 if (name.equals("")) {
                     JOptionPane.showMessageDialog(null,
-                        "Please enter a task name!",
-                        "Oops!", JOptionPane.WARNING_MESSAGE);
+                        "Please enter a task name!", "Oops!", JOptionPane.WARNING_MESSAGE);
                     return;
                 }
 
-                // format the date from the spinner into a readable string
                 Date selectedDate = (Date) deadlineSpinner.getValue();
-                SimpleDateFormat formatter = new SimpleDateFormat("MMM dd, yyyy  hh:mm a");
-                String deadline = formatter.format(selectedDate);
+                SimpleDateFormat fmt = new SimpleDateFormat("MMM dd, yyyy  hh:mm a");
+                String deadline = fmt.format(selectedDate);
 
                 Task newTask = new Task(name, deadline);
                 myTasks.add(newTask);
                 taskListModel.addElement(newTask.toString());
 
-                // clear the name field and put the cursor back in it
                 taskNameInput.setText("");
                 taskNameInput.requestFocus();
             }
@@ -271,31 +265,33 @@ public class GetItDone extends JFrame {
 
                 Task t = myTasks.get(index);
 
-                // save the task to the file so it's not forgotten
                 saveTaskToFile(t);
-
-                // add it to the completed list display
                 completedListModel.addElement("[DONE]  " + t.name + "  |  Was due: " + t.deadline);
 
-                // remove from the active task list
                 myTasks.remove(index);
                 taskListModel.remove(index);
 
-                // reward the user with points
-                totalPoints += 10;
                 tasksFinished++;
                 updateStatsDisplay();
 
-                // check if they just hit their goal or earned a badge
-                checkForGoalAndBadges();
+                // pick the next message in rotation and show it
+                String msg = completionMessages[completionMsgIndex % completionMessages.length];
+                completionMsgIndex++;
+
+                // check for milestone messages - these override the regular rotation
+                String milestoneMsg = getMilestoneMessage();
+                if (!milestoneMsg.equals("")) {
+                    msg = milestoneMsg;
+                }
 
                 JOptionPane.showMessageDialog(null,
-                    "Awesome! You completed:\n\"" + t.name + "\"\n\n+10 points!  Keep it up!",
-                    "Task Complete!", JOptionPane.INFORMATION_MESSAGE);
+                    msg, "Task Complete!", JOptionPane.INFORMATION_MESSAGE);
+
+                // also check if the daily goal was just hit
+                checkGoal();
             }
         });
 
-        // put the bottom half of the tab together
         JPanel bottomHalf = new JPanel(new BorderLayout());
         bottomHalf.setBackground(new Color(248, 250, 255));
         bottomHalf.add(addTaskForm,  BorderLayout.CENTER);
@@ -309,7 +305,7 @@ public class GetItDone extends JFrame {
 
 
     // -------------------------------------------------------
-    // GOALS TAB - set a study goal, track progress, see rewards
+    // GOALS TAB
     // -------------------------------------------------------
     private JPanel buildGoalsTab() {
         JPanel panel = new JPanel();
@@ -317,7 +313,7 @@ public class GetItDone extends JFrame {
         panel.setBorder(new EmptyBorder(18, 22, 18, 22));
         panel.setBackground(new Color(248, 250, 255));
 
-        // --- set goal section ---
+        // --- set goal ---
         JLabel setGoalTitle = makeSectionTitle("Set Your Daily Study Goal");
 
         JLabel setGoalDesc = makeLabel("How many tasks do you want to complete today?");
@@ -335,7 +331,7 @@ public class GetItDone extends JFrame {
         setGoalRow.add(goalInput);
         setGoalRow.add(setGoalBtn);
 
-        // --- progress section ---
+        // --- progress ---
         JLabel progressTitle = makeSectionTitle("Your Progress Today");
 
         goalProgressBar.setValue(tasksFinished);
@@ -348,34 +344,30 @@ public class GetItDone extends JFrame {
         goalProgressBar.setPreferredSize(new Dimension(400, 28));
         goalProgressBar.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        // --- rewards section ---
-        JLabel rewardsTitle = makeSectionTitle("Points & Badges");
+        // --- achievements ---
+        JLabel achievementsTitle = makeSectionTitle("Your Achievements");
 
-        // this text area shows what badges they can earn (and which they've got)
-        badgeStatusArea = new JTextArea(8, 40);
-        badgeStatusArea.setEditable(false);
-        badgeStatusArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        badgeStatusArea.setBackground(new Color(255, 253, 220));
-        badgeStatusArea.setLineWrap(true);
-        badgeStatusArea.setWrapStyleWord(true);
-        badgeStatusArea.setBorder(new EmptyBorder(12, 14, 12, 14));
-        updateBadgeDisplay();   // fill in the badge status right away
+        achievementsArea = new JTextArea(10, 40);
+        achievementsArea.setEditable(false);
+        achievementsArea.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        achievementsArea.setBackground(new Color(245, 255, 245));
+        achievementsArea.setLineWrap(true);
+        achievementsArea.setWrapStyleWord(true);
+        achievementsArea.setBorder(new EmptyBorder(12, 14, 12, 14));
+        updateAchievementsDisplay();
 
-        JScrollPane badgeScroll = new JScrollPane(badgeStatusArea);
-        badgeScroll.setBorder(BorderFactory.createLineBorder(new Color(220, 200, 100), 1));
-        badgeScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
-        badgeScroll.setMaximumSize(new Dimension(560, 200));
+        JScrollPane achievementsScroll = new JScrollPane(achievementsArea);
+        achievementsScroll.setBorder(BorderFactory.createLineBorder(new Color(100, 180, 120), 1));
+        achievementsScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
+        achievementsScroll.setMaximumSize(new Dimension(560, 240));
 
-        // set goal button action
         setGoalBtn.addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent e) {
-                String input = goalInput.getText().trim();
                 try {
-                    int newGoal = Integer.parseInt(input);
+                    int newGoal = Integer.parseInt(goalInput.getText().trim());
                     if (newGoal < 1) {
                         JOptionPane.showMessageDialog(null,
-                            "Your goal must be at least 1 task!",
-                            "Too small", JOptionPane.WARNING_MESSAGE);
+                            "Your goal must be at least 1 task!", "Too small", JOptionPane.WARNING_MESSAGE);
                         return;
                     }
                     studyGoal = newGoal;
@@ -391,54 +383,6 @@ public class GetItDone extends JFrame {
             }
         });
 
-        // --- reward claim section ---
-        JLabel claimTitle = makeSectionTitle("Gift Card Rewards");
-
-        JLabel claimDesc = makeLabel("Earn points to unlock gift card rewards. Show proof to claim them!");
-        claimDesc.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // reward tiers info
-        JPanel tiersPanel = new JPanel();
-        tiersPanel.setLayout(new BoxLayout(tiersPanel, BoxLayout.Y_AXIS));
-        tiersPanel.setBackground(new Color(240, 248, 255));
-        tiersPanel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(new Color(45, 95, 155), 1),
-            new EmptyBorder(10, 14, 10, 14)
-        ));
-        tiersPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        tiersPanel.setMaximumSize(new Dimension(560, 110));
-
-        String[] tiers = {
-            "50 pts   ->   Level 1 Reward  (show to parent/teacher to claim)",
-            "100 pts  ->   Level 2 Reward  (show to parent/teacher to claim)",
-            "200 pts  ->   Level 3 Reward  (show to parent/teacher to claim)",
-            "300 pts  ->   Grand Reward    (show to parent/teacher to claim)"
-        };
-        for (String tier : tiers) {
-            JLabel tierLabel = makeLabel(tier);
-            tierLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-            tiersPanel.add(tierLabel);
-        }
-
-        // notice + claim button row
-        JPanel claimRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
-        claimRow.setBackground(new Color(248, 250, 255));
-        claimRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        rewardNoticeLabel.setFont(new Font("Segoe UI", Font.ITALIC, 13));
-        rewardNoticeLabel.setForeground(new Color(150, 90, 0));
-        claimRewardBtn.setEnabled(false);  // disabled until a reward is available
-
-        claimRow.add(claimRewardBtn);
-        claimRow.add(rewardNoticeLabel);
-
-        claimRewardBtn.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                showRewardClaimDialog();
-            }
-        });
-
-        // stack everything vertically
         panel.add(setGoalTitle);
         panel.add(Box.createVerticalStrut(6));
         panel.add(setGoalDesc);
@@ -449,24 +393,16 @@ public class GetItDone extends JFrame {
         panel.add(Box.createVerticalStrut(8));
         panel.add(goalProgressBar);
         panel.add(Box.createVerticalStrut(22));
-        panel.add(rewardsTitle);
+        panel.add(achievementsTitle);
         panel.add(Box.createVerticalStrut(8));
-        panel.add(badgeScroll);
-        panel.add(Box.createVerticalStrut(22));
-        panel.add(claimTitle);
-        panel.add(Box.createVerticalStrut(6));
-        panel.add(claimDesc);
-        panel.add(Box.createVerticalStrut(8));
-        panel.add(tiersPanel);
-        panel.add(Box.createVerticalStrut(10));
-        panel.add(claimRow);
+        panel.add(achievementsScroll);
 
         return panel;
     }
 
 
     // -------------------------------------------------------
-    // COMPLETED TASKS TAB - shows everything you've done
+    // COMPLETED TASKS TAB
     // -------------------------------------------------------
     private JPanel buildCompletedTab() {
         JPanel panel = new JPanel(new BorderLayout(10, 10));
@@ -496,341 +432,165 @@ public class GetItDone extends JFrame {
 
 
     // -------------------------------------------------------
-    // BOTTOM BAR - shows reminder countdown timers
-    // -------------------------------------------------------
-    private JPanel buildBottomBar() {
-        JPanel bottomBar = new JPanel(new BorderLayout());
-        bottomBar.setBackground(new Color(220, 245, 215));
-        bottomBar.setBorder(new EmptyBorder(6, 10, 6, 10));
-
-        reminderLabel.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        reminderLabel.setForeground(new Color(25, 95, 25));
-
-        bottomBar.add(reminderLabel, BorderLayout.WEST);
-
-        return bottomBar;
-    }
-
-
-    // -------------------------------------------------------
-    // REMINDER TIMER - fires every minute
+    // REMINDER TIMER - runs silently in the background
     // -------------------------------------------------------
     private void startReminderTimer() {
-        // this timer ticks once every 60 seconds (1 minute)
         Timer minuteTimer = new Timer(60000, new ActionListener() {
             public void actionPerformed(ActionEvent e) {
                 breakMinutesLeft--;
                 waterMinutesLeft--;
 
-                // time for a break?
                 if (breakMinutesLeft <= 0) {
-                    breakMinutesLeft = 25;  // reset the 25-minute countdown
-                    JOptionPane.showMessageDialog(null,
-                        "TIME FOR A BREAK!\n\n" +
-                        "You've been working for 25 minutes.\n" +
-                        "Stand up, stretch, and rest your eyes for 5 minutes.\n\n" +
-                        "Your brain will thank you!",
-                        "Break Time!", JOptionPane.INFORMATION_MESSAGE);
+                    breakMinutesLeft = 25;
+                    String msg = breakMessages[breakMsgIndex % breakMessages.length];
+                    breakMsgIndex++;
+                    showToastNotification(msg, new Color(70, 120, 200));
                 }
 
-                // time to drink water?
                 if (waterMinutesLeft <= 0) {
-                    waterMinutesLeft = 60;  // reset the 60-minute countdown
-                    JOptionPane.showMessageDialog(null,
-                        "DRINK SOME WATER!\n\n" +
-                        "You've been working for an hour.\n" +
-                        "Staying hydrated helps you focus and feel better!\n\n" +
-                        "Go grab a glass now!",
-                        "Hydration Reminder!", JOptionPane.INFORMATION_MESSAGE);
+                    waterMinutesLeft = 60;
+                    String msg = waterMessages[waterMsgIndex % waterMessages.length];
+                    waterMsgIndex++;
+                    showToastNotification(msg, new Color(30, 150, 180));
                 }
-
-                // update the countdown display at the bottom of the app
-                reminderLabel.setText(
-                    "  Next break in: " + breakMinutesLeft +
-                    " min   |   Next water reminder in: " + waterMinutesLeft + " min");
             }
         });
 
         minuteTimer.start();
     }
 
+    // small banner that appears at the top of the window and disappears after 5 seconds
+    private void showToastNotification(String message, Color bgColor) {
+        JWindow toast = new JWindow(this);
+
+        JPanel toastPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 16, 10));
+        toastPanel.setBackground(bgColor);
+        toastPanel.setBorder(BorderFactory.createLineBorder(bgColor.darker(), 1));
+
+        JLabel msgLabel = new JLabel(message);
+        msgLabel.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        msgLabel.setForeground(Color.WHITE);
+
+        toastPanel.add(msgLabel);
+        toast.add(toastPanel);
+        toast.pack();
+
+        int x = getX() + (getWidth()  - toast.getWidth())  / 2;
+        int y = getY() + 58;
+        toast.setLocation(x, y);
+        toast.setVisible(true);
+
+        Timer closeTimer = new Timer(5000, new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                toast.dispose();
+            }
+        });
+        closeTimer.setRepeats(false);
+        closeTimer.start();
+    }
+
 
     // -------------------------------------------------------
-    // STATS & GOALS - update the display after something changes
+    // STATS & ACHIEVEMENTS
     // -------------------------------------------------------
     private void updateStatsDisplay() {
-        // update the top bar labels
-        pointsLabel.setText("  Points: " + totalPoints);
         goalProgressLabel.setText("  Goal: " + tasksFinished + " / " + studyGoal + " tasks");
 
-        // update the progress bar on the goals tab
         goalProgressBar.setMaximum(studyGoal);
         goalProgressBar.setValue(tasksFinished);
         goalProgressBar.setString(tasksFinished + " / " + studyGoal + " tasks completed");
 
-        // refresh the badge area too
-        updateBadgeDisplay();
+        updateAchievementsDisplay();
     }
 
-    private void checkForGoalAndBadges() {
-        // did they just hit their daily goal?
+    // returns a special message at task milestones, or empty string if no milestone
+    private String getMilestoneMessage() {
+        if (tasksFinished == 1)  return "Great start! The first one is always the hardest!";
+        if (tasksFinished == 3)  return "3 tasks done! You're on a roll!";
+        if (tasksFinished == 5)  return "5 tasks finished! You're having a really productive day!";
+        if (tasksFinished == 10) return "10 tasks! Wow, you are seriously crushing it today!";
+        if (tasksFinished == 15) return "15 tasks! That's an incredible amount of work. Be proud!";
+        if (tasksFinished == 20) return "20 tasks! You are absolutely unstoppable!";
+        return "";  // no milestone, use the regular rotation
+    }
+
+    private void checkGoal() {
         if (tasksFinished == studyGoal) {
             goalsCompleted++;
+            updateAchievementsDisplay();
+
             String message = "YOU HIT YOUR GOAL!\n\n" +
-                "You completed all " + studyGoal + " tasks for today!\n" +
-                "That's amazing work - you earned the Goal Crusher badge!\n\n" +
-                "Current points: " + totalPoints;
+                "You completed all " + studyGoal + " tasks for today.\n" +
+                "That took real effort - you should be proud!\n\n" +
+                "Total tasks finished today: " + tasksFinished;
 
             if (goalsCompleted >= 3) {
-                message += "\n\nYou've hit your goal " + goalsCompleted + " times! ON FIRE badge unlocked!";
+                message += "\n\nYou've hit your daily goal " + goalsCompleted
+                    + " times now!\nYou are building an amazing study habit!";
             }
 
-            JOptionPane.showMessageDialog(null, message, "GOAL REACHED!", JOptionPane.INFORMATION_MESSAGE);
-        }
-
-        // point milestone badges + rewards
-        if (totalPoints >= 10 && totalPoints < 20) {
-            JOptionPane.showMessageDialog(null,
-                "Badge unlocked:  TASK STARTER\n\nYou completed your first task!",
-                "New Badge!", JOptionPane.INFORMATION_MESSAGE);
-        }
-
-        // check if a new reward tier was just crossed
-        if (totalPoints >= 50 && !reward50given) {
-            reward50given = true;
-            unclaimedRewards++;
-            updateRewardNotice();
-            JOptionPane.showMessageDialog(null,
-                "Badge unlocked:  GETTING THINGS DONE\n\n" +
-                "You've earned 50 points!\n\n" +
-                "A Level 1 Reward is waiting for you!\n" +
-                "Go to Goals & Rewards -> Claim Reward to get your gift card!",
-                "New Badge + Reward Unlocked!", JOptionPane.INFORMATION_MESSAGE);
-        }
-
-        if (totalPoints >= 100 && !reward100given) {
-            reward100given = true;
-            unclaimedRewards++;
-            updateRewardNotice();
-            JOptionPane.showMessageDialog(null,
-                "Badge unlocked:  PRODUCTIVITY PRO\n\n" +
-                "You've earned 100 points!\n\n" +
-                "A Level 2 Reward is waiting for you!\n" +
-                "Go to Goals & Rewards -> Claim Reward to get your gift card!",
-                "New Badge + Reward Unlocked!", JOptionPane.INFORMATION_MESSAGE);
-        }
-
-        if (totalPoints >= 200 && !reward200given) {
-            reward200given = true;
-            unclaimedRewards++;
-            updateRewardNotice();
-            JOptionPane.showMessageDialog(null,
-                "Badge unlocked:  UNSTOPPABLE\n\n" +
-                "You've earned 200 points!\n\n" +
-                "A Level 3 Reward is waiting for you!\n" +
-                "Go to Goals & Rewards -> Claim Reward to get your gift card!",
-                "New Badge + Reward Unlocked!", JOptionPane.INFORMATION_MESSAGE);
-        }
-
-        if (totalPoints >= 300 && !reward300given) {
-            reward300given = true;
-            unclaimedRewards++;
-            updateRewardNotice();
-            JOptionPane.showMessageDialog(null,
-                "Badge unlocked:  LEGENDARY\n\n" +
-                "You've earned 300 points! That's incredible!\n\n" +
-                "The Grand Reward is waiting for you!\n" +
-                "Go to Goals & Rewards -> Claim Reward to get your gift card!",
-                "Grand Reward Unlocked!", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(null, message,
+                "Goal Reached!", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
-    private void updateBadgeDisplay() {
-        String locked   = "[ ]  ";
-        String unlocked = "[X]  ";
-
-        String text =
-            "HOW TO EARN POINTS:\n" +
-            "  Complete any task = +10 points\n\n" +
-            "BADGES:\n" +
-            (totalPoints >= 10  ? unlocked : locked) + "Task Starter          -  Earn 10 points\n" +
-            (totalPoints >= 50  ? unlocked : locked) + "Getting Things Done   -  Earn 50 points  (+Level 1 Reward)\n" +
-            (totalPoints >= 100 ? unlocked : locked) + "Productivity Pro      -  Earn 100 points (+Level 2 Reward)\n" +
-            (totalPoints >= 200 ? unlocked : locked) + "Unstoppable           -  Earn 200 points (+Level 3 Reward)\n" +
-            (totalPoints >= 300 ? unlocked : locked) + "Legendary             -  Earn 300 points (+Grand Reward)\n" +
-            (goalsCompleted >= 1 ? unlocked : locked) + "Goal Crusher          -  Complete your daily goal\n" +
-            (goalsCompleted >= 3 ? unlocked : locked) + "On Fire               -  Complete your daily goal 3 times\n\n" +
-            "Current points:   " + totalPoints + "\n" +
-            "Tasks finished:   " + tasksFinished + "\n" +
-            "Goals completed:  " + goalsCompleted + "\n" +
-            "Rewards to claim: " + unclaimedRewards;
-
-        if (badgeStatusArea != null) {
-            badgeStatusArea.setText(text);
-        }
-    }
-
-    private void updateRewardNotice() {
-        if (unclaimedRewards > 0) {
-            rewardNoticeLabel.setText("  You have " + unclaimedRewards + " reward(s) ready to claim!");
-            rewardNoticeLabel.setForeground(new Color(160, 80, 0));
-            claimRewardBtn.setEnabled(true);
-        } else {
-            rewardNoticeLabel.setText("  No rewards to claim yet. Keep completing tasks!");
-            rewardNoticeLabel.setForeground(new Color(100, 100, 100));
-            claimRewardBtn.setEnabled(false);
-        }
-    }
-
-
-    // -------------------------------------------------------
-    // REWARD CLAIM DIALOG - shows the claim slip with proof
-    // -------------------------------------------------------
-    private void showRewardClaimDialog() {
-        if (unclaimedRewards <= 0) {
+    private void updateAchievementsDisplay() {
+        if (achievementsArea == null) {
             return;
         }
 
-        // figure out which reward level this claim is for (highest unlocked tier)
-        String rewardLevel;
-        if (reward300given && totalPoints >= 300) {
-            rewardLevel = "Grand Reward (300+ pts)";
-        } else if (reward200given && totalPoints >= 200) {
-            rewardLevel = "Level 3 Reward (200+ pts)";
-        } else if (reward100given && totalPoints >= 100) {
-            rewardLevel = "Level 2 Reward (100+ pts)";
+        // build up a summary of what the user has accomplished
+        StringBuilder sb = new StringBuilder();
+
+        sb.append("TASKS COMPLETED:  ").append(tasksFinished).append("\n");
+        sb.append("DAILY GOALS HIT:  ").append(goalsCompleted).append("\n\n");
+
+        // show a message that reflects their current progress
+        if (tasksFinished == 0) {
+            sb.append("Add your first task and get started!\n");
+            sb.append("You've got this.\n");
+        } else if (tasksFinished < 3) {
+            sb.append("Good job studying! You're off to a solid start.\n");
+            sb.append("Keep going - momentum builds quickly!\n");
+        } else if (tasksFinished < 5) {
+            sb.append("You're doing great! Every task you finish\n");
+            sb.append("is proof that you're putting in the work.\n");
+        } else if (tasksFinished < 10) {
+            sb.append("Impressive work! You're clearly focused today.\n");
+            sb.append("This kind of effort really pays off over time.\n");
+        } else if (tasksFinished < 15) {
+            sb.append("10+ tasks? That's seriously productive.\n");
+            sb.append("You should feel really good about today's work!\n");
         } else {
-            rewardLevel = "Level 1 Reward (50+ pts)";
+            sb.append("You are absolutely crushing it.\n");
+            sb.append("The amount of work you're putting in is incredible.\n");
+            sb.append("Keep this energy going!\n");
         }
 
-        // generate a unique claim code using the date and their stats
-        SimpleDateFormat codeFmt = new SimpleDateFormat("yyyyMMdd");
-        String today = codeFmt.format(new Date());
-        String claimCode = "GID-" + String.format("%03d", totalPoints)
-                         + "-" + String.format("%02d", tasksFinished)
-                         + "-" + today;
+        sb.append("\n--- MILESTONES REACHED ---\n");
+        if (tasksFinished >= 1)  sb.append("[x]  First task completed\n");
+        if (tasksFinished >= 3)  sb.append("[x]  3 tasks in a session\n");
+        if (tasksFinished >= 5)  sb.append("[x]  5 tasks in a session\n");
+        if (tasksFinished >= 10) sb.append("[x]  10 tasks in a session\n");
+        if (tasksFinished >= 15) sb.append("[x]  15 tasks in a session\n");
+        if (tasksFinished >= 20) sb.append("[x]  20 tasks in a session\n");
+        if (goalsCompleted >= 1) sb.append("[x]  Hit your daily goal\n");
+        if (goalsCompleted >= 3) sb.append("[x]  Hit your daily goal 3 times\n");
+        if (goalsCompleted >= 5) sb.append("[x]  Hit your daily goal 5 times\n");
 
-        // build the proof text - list all completed tasks from the list model
-        StringBuilder proofBuilder = new StringBuilder();
-        proofBuilder.append("COMPLETED TASKS AS PROOF:\n");
-        proofBuilder.append("-------------------------------\n");
-        if (completedListModel.getSize() == 0) {
-            proofBuilder.append("(No completed tasks recorded in this session)\n");
-        } else {
-            for (int i = 0; i < completedListModel.getSize(); i++) {
-                proofBuilder.append(completedListModel.getElementAt(i)).append("\n");
-            }
-        }
-        proofBuilder.append("-------------------------------\n");
-        proofBuilder.append("Total points: ").append(totalPoints).append("\n");
-        proofBuilder.append("Total tasks finished: ").append(tasksFinished).append("\n");
-
-        // build the full claim slip dialog
-        JPanel claimPanel = new JPanel();
-        claimPanel.setLayout(new BoxLayout(claimPanel, BoxLayout.Y_AXIS));
-        claimPanel.setBackground(new Color(255, 252, 230));
-        claimPanel.setBorder(new EmptyBorder(15, 20, 15, 20));
-
-        JLabel congrats = new JLabel("CONGRATULATIONS! You earned a reward!");
-        congrats.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        congrats.setForeground(new Color(150, 80, 0));
-        congrats.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel levelLbl = new JLabel("Reward: " + rewardLevel);
-        levelLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        levelLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel codeLbl = new JLabel("Your Claim Code:");
-        codeLbl.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        codeLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        // the actual claim code displayed in a text field so they can copy it
-        JTextField codeField = new JTextField(claimCode);
-        codeField.setFont(new Font("Consolas", Font.BOLD, 16));
-        codeField.setEditable(false);
-        codeField.setBackground(new Color(255, 245, 200));
-        codeField.setBorder(BorderFactory.createLineBorder(new Color(200, 150, 0), 2));
-        codeField.setAlignmentX(Component.LEFT_ALIGNMENT);
-        codeField.setMaximumSize(new Dimension(400, 36));
-
-        JLabel instructionLbl = new JLabel("HOW TO CLAIM YOUR GIFT CARD:");
-        instructionLbl.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        instructionLbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JTextArea instructions = new JTextArea(
-            "1. Show THIS SCREEN to your parent or teacher.\n" +
-            "2. Show them your completed_tasks.txt file as proof.\n" +
-            "   (It's in the same folder where you run the app.)\n" +
-            "3. They will verify your work and give you your reward!\n\n" +
-            "Your claim code is unique to you - it includes your points,\n" +
-            "tasks completed, and today's date."
-        );
-        instructions.setEditable(false);
-        instructions.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-        instructions.setBackground(new Color(255, 252, 230));
-        instructions.setLineWrap(true);
-        instructions.setWrapStyleWord(true);
-        instructions.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel proofTitle = new JLabel("YOUR PROOF OF COMPLETION:");
-        proofTitle.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        proofTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JTextArea proofArea = new JTextArea(proofBuilder.toString(), 6, 40);
-        proofArea.setEditable(false);
-        proofArea.setFont(new Font("Consolas", Font.PLAIN, 11));
-        proofArea.setBackground(new Color(242, 255, 242));
-        proofArea.setBorder(new EmptyBorder(6, 8, 6, 8));
-
-        JScrollPane proofScroll = new JScrollPane(proofArea);
-        proofScroll.setAlignmentX(Component.LEFT_ALIGNMENT);
-        proofScroll.setMaximumSize(new Dimension(500, 130));
-
-        claimPanel.add(congrats);
-        claimPanel.add(Box.createVerticalStrut(10));
-        claimPanel.add(levelLbl);
-        claimPanel.add(Box.createVerticalStrut(10));
-        claimPanel.add(codeLbl);
-        claimPanel.add(Box.createVerticalStrut(4));
-        claimPanel.add(codeField);
-        claimPanel.add(Box.createVerticalStrut(14));
-        claimPanel.add(instructionLbl);
-        claimPanel.add(Box.createVerticalStrut(4));
-        claimPanel.add(instructions);
-        claimPanel.add(Box.createVerticalStrut(14));
-        claimPanel.add(proofTitle);
-        claimPanel.add(Box.createVerticalStrut(4));
-        claimPanel.add(proofScroll);
-
-        int result = JOptionPane.showConfirmDialog(this, claimPanel,
-            "Your Reward Claim Slip",
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.PLAIN_MESSAGE);
-
-        // if they pressed OK (meaning they showed it to someone), reduce the unclaimed count
-        if (result == JOptionPane.OK_OPTION) {
-            unclaimedRewards--;
-            updateRewardNotice();
-            updateBadgeDisplay();
-            JOptionPane.showMessageDialog(null,
-                "Reward claimed! Great work!\n\nKeep completing tasks to earn more rewards!",
-                "Claimed!", JOptionPane.INFORMATION_MESSAGE);
-        }
+        achievementsArea.setText(sb.toString());
     }
 
 
     // -------------------------------------------------------
-    // FILE OPERATIONS - save and load completed tasks
+    // FILE OPERATIONS
     // -------------------------------------------------------
     private void saveTaskToFile(Task t) {
         try {
-            // true = append mode, so we don't overwrite old entries
-            FileWriter fw   = new FileWriter("completed_tasks.txt", true);
+            FileWriter fw     = new FileWriter("completed_tasks.txt", true);
             BufferedWriter bw = new BufferedWriter(fw);
-
             bw.write("Task: " + t.name + "  |  Deadline was: " + t.deadline);
             bw.newLine();
-
             bw.close();
             fw.close();
         } catch (IOException e) {
@@ -842,23 +602,19 @@ public class GetItDone extends JFrame {
 
     private void loadCompletedTasksFromFile() {
         File file = new File("completed_tasks.txt");
-
-        // if the file doesn't exist yet, just do nothing - that's fine
         if (!file.exists()) {
             return;
         }
 
         try {
-            FileReader fr   = new FileReader(file);
+            FileReader fr     = new FileReader(file);
             BufferedReader br = new BufferedReader(fr);
-
             String line;
             while ((line = br.readLine()) != null) {
                 if (!line.trim().equals("")) {
                     completedListModel.addElement("[DONE]  " + line);
                 }
             }
-
             br.close();
             fr.close();
         } catch (IOException e) {
@@ -870,10 +626,8 @@ public class GetItDone extends JFrame {
 
 
     // -------------------------------------------------------
-    // HELPER METHODS - small utilities to keep things tidy
+    // HELPER METHODS
     // -------------------------------------------------------
-
-    // creates a button with custom colors
     private JButton makeButton(String text, Color bg, Color fg) {
         JButton btn = new JButton(text);
         btn.setBackground(bg);
@@ -885,14 +639,12 @@ public class GetItDone extends JFrame {
         return btn;
     }
 
-    // creates a label with the default font
     private JLabel makeLabel(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.PLAIN, 13));
         return label;
     }
 
-    // creates a bold section title label
     private JLabel makeSectionTitle(String text) {
         JLabel label = new JLabel(text);
         label.setFont(new Font("Segoe UI", Font.BOLD, 15));
@@ -901,7 +653,6 @@ public class GetItDone extends JFrame {
         return label;
     }
 
-    // creates a titled border for panels
     private TitledBorder makeTitledBorder(String title, Color color) {
         return BorderFactory.createTitledBorder(
             BorderFactory.createLineBorder(color, 1),
@@ -913,18 +664,15 @@ public class GetItDone extends JFrame {
         );
     }
 
-    // invisible spacer component
     private Component makeSpacer(int width) {
         return Box.createHorizontalStrut(width);
     }
 
 
     // -------------------------------------------------------
-    // MAIN METHOD - this is where the program starts running
+    // MAIN METHOD
     // -------------------------------------------------------
     public static void main(String[] args) {
-        // Swing apps need to be started on the Event Dispatch Thread
-        // this is the standard way to do it
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 GetItDone app = new GetItDone();
