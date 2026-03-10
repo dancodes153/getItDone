@@ -35,7 +35,7 @@ javac Task.java GetItDone.java
 java GetItDone
 ```
 
-That's it! The app window will open.
+That's it, the app window should open.
 
 ## Points & Badges
 
